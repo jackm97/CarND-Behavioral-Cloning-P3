@@ -118,8 +118,8 @@ if __name__ == '__main__':
     if model_version != keras_version:
         print('You are using Keras version ', keras_version,
               ', but the model was built using ', model_version)
-
-    model = load_model(args.model)
+    import tensorflow as tf
+    model = load_model(args.model, custom_objects={'tf': tf})
 
     if args.image_folder != '':
         print("Creating image folder at {}".format(args.image_folder))
