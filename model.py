@@ -3,62 +3,19 @@ import cv2
 import numpy as np
 import os
 from math import ceil
-from random import shuffle
+from random import shuffle, seed
 
 image_files = []
 steering_angles = []
-
-data_dir = './data'
-lines = []
-with open(data_dir + '/driving_log.csv') as csvfile:
+with open('../my_driving_data/driving_log_resamp.csv') as csvfile:
     reader = csv.reader(csvfile)
     for line in reader:
-        lines.append(line)
+        if not reader.line_num==1:
+            image_files.append(line[1])
+            steering_angles.append(line[2])
 
-for line in lines[1:]:
-    centerfile = data_dir + '/IMG/' + line[0].split('/')[-1]
-    image_files.append(centerfile)
-    center_angle = float(line[3])
-    steering_angles.append(str(center_angle))
-
-    leftfile = data_dir + '/IMG/' + line[1].split('/')[-1]
-    image_files.append(leftfile)
-    left_angle = float(line[3]) - .2
-    steering_angles.append(str(left_angle))
-
-    rightfile = data_dir + '/IMG/' + line[2].split('/')[-1]
-    image_files.append(rightfile)
-    right_angle = float(line[3]) + .2
-    steering_angles.append(str(right_angle))
-
-
-data_folder = '../my_driving_data/'
-data_dirs = os.listdir(data_folder)
-print(data_dirs)
-for data_dir in data_dirs:
-    lines = []
-    with open(data_folder + data_dir + '/driving_log.csv') as csvfile:
-        reader = csv.reader(csvfile)
-        for line in reader:
-            lines.append(line)
-            
-    for line in lines[1:]:
-        centerfile = data_folder + data_dir + '/IMG/' + line[0].split('\\')[-1]
-        image_files.append(centerfile)
-        center_angle = float(line[3])
-        steering_angles.append(str(center_angle))
-
-        leftfile = data_folder + data_dir + '/IMG/' + line[1].split('\\')[-1]
-        image_files.append(leftfile)
-        left_angle = float(line[3]) - .2
-        steering_angles.append(str(left_angle))
-
-        rightfile = data_folder + data_dir + '/IMG/' + line[2].split('\\')[-1]
-        image_files.append(rightfile)
-        right_angle = float(line[3]) + .2
-        steering_angles.append(str(right_angle))
-
-data = np.array([image_files,steering_angles]).T
+data = np.column_stack([image_files,steering_angles])
+print(data.shape)
         
 
 from sklearn.model_selection import train_test_split
@@ -67,6 +24,7 @@ train_data, validation_data = train_test_split(data, test_size=0.2)
 import sklearn
 import tensorflow as tf
 def generator(data, batch_size=32,train=False):
+    seed(1)
     shuffle(data)
     num_samples = len(data)
     image_input = tf.placeholder(tf.uint8,shape=(None,160,320,3))
@@ -79,25 +37,30 @@ def generator(data, batch_size=32,train=False):
                 for entry in data[offset:offset+batch_size]:
                     if os.path.isfile(entry[0]):
                         image = cv2.imread(entry[0])
-                        if np.random.uniform() > .5:
+                        if train:
+                            rows,cols,depth = image.shape
+                            angle = 5.0*np.random.normal()
+                            mtx = cv2.getRotationMatrix2D((cols/2,rows/2),angle,1)
+                            image = cv2.warpAffine(image,mtx,(cols,rows))
+                            if np.random.uniform() > .5:
+                                images.append(image)
+                                steering_angles.append(float(entry[1]))
+                            else:
+                                images.append(cv2.flip(image,1))
+                                steering_angles.append(-1*float(entry[1]))
+                        else:
                             images.append(image)
                             steering_angles.append(float(entry[1]))
-                        else:
-                            images.append(cv2.flip(image,1))
-                            steering_angles.append(-1*float(entry[1]))
             
                 X = np.asarray(images)
                 y = np.array(steering_angles).reshape(len(X),1)
-#                 if train:
-#                     flipped_images = sess.run(flipped,feed_dict={image_input:X})
-#                     X = np.concatenate((X,flipped_images))
-#                     y = np.concatenate((y,-1*y))
                 yield sklearn.utils.shuffle(X, y)
         
 if __name__ == "__main__":
     import sys
     
     batch_size = 32
+    np.random.seed(50)
     train_generator = generator(train_data, batch_size=batch_size,train=True)
     validation_generator = generator(validation_data, batch_size=batch_size)
     
@@ -107,51 +70,38 @@ if __name__ == "__main__":
 
         model = Sequential()
         model.add(Cropping2D(input_shape=(160,320,3),cropping=((70,25),(0,0))))
-#         model.add(Lambda(lambda images: tf.image.resize_images(images,size=(66,200))))
         model.add(Lambda(lambda images: tf.map_fn(lambda input: tf.image.per_image_standardization(input),images)))
 
         model.add(Conv2D(filters=24,kernel_size=(5,5), strides=(2, 2)))
         model.add(Activation('relu'))
-#         model.add(Lambda(lambda image: tf.nn.local_response_normalization(image)))
-        model.add(Dropout(rate=.3))
 
         model.add(Conv2D(filters=36,kernel_size=(5,5), strides=(2, 2)))
         model.add(Activation('relu'))
-#         model.add(Lambda(lambda image: tf.nn.local_response_normalization(image)))
-        model.add(Dropout(rate=.3))
 
         model.add(Conv2D(filters=48,kernel_size=(5,5), strides=(2, 2)))
         model.add(Activation('relu'))
-#         model.add(Lambda(lambda image: tf.nn.local_response_normalization(image)))
-        model.add(Dropout(rate=.3))
 
         model.add(Conv2D(filters=64,kernel_size=(3,3), strides=(1, 1)))
         model.add(Activation('relu'))
-#         model.add(Lambda(lambda image: tf.nn.local_response_normalization(image)))
-        model.add(Dropout(rate=.3))
 
         model.add(Conv2D(filters=64,kernel_size=(3,3), strides=(1, 1)))
         model.add(Activation('relu'))
-#         model.add(Lambda(lambda image: tf.nn.local_response_normalization(image)))
         model.add(Dropout(rate=.3))
 
         model.add(Flatten())
 
         model.add(Dense(100,activation='relu'))
-        model.add(Dropout(rate=.3))
         model.add(Dense(50,activation='relu'))
-        model.add(Dropout(rate=.3))
         model.add(Dense(10,activation='relu'))
-        model.add(Dropout(rate=.3))
         model.add(Dense(1))
 
         model.compile(loss='mse',optimizer='adam')
         
-    if sys.argv[1] == "1":
+    else:
         import h5py
         from keras.models import load_model
-        model = load_model("model.h5", custom_objects={'tf': tf})
-        print('model.h5 loaded')
+        model = load_model(sys.argv[1], custom_objects={'tf': tf})
+        print('model loaded')
     
      
     from keras.callbacks import EarlyStopping
@@ -159,7 +109,7 @@ if __name__ == "__main__":
                 steps_per_epoch=ceil(len(train_data)/batch_size),\
                 validation_data=validation_generator,\
                 validation_steps=ceil(len(validation_data)/batch_size),\
-                epochs=10, verbose=1, callbacks=[EarlyStopping(min_delta=.0001)])
+                epochs=10, verbose=1, callbacks=[EarlyStopping(min_delta=0,patience=2)])
     
     save_choice = input("Do you want to save the model (y/n)? ")
     if save_choice == 'y':
