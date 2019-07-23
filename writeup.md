@@ -15,10 +15,10 @@ The goals / steps of this project are the following:
 [//]: # (Image References)
 
 [image1]: ./examples/arc_vis.JPG "Model Visualization"
-[image2]: ./examples/center.png "Center Image"
-[image3]: ./examples/recov1.png "Recovery Image"
-[image4]: ./examples/recov2.png "Recovery Image"
-[image5]: ./examples/recov3.png "Recovery Image"
+[image2]: ./examples/center.jpg "Center Image"
+[image3]: ./examples/recov1.jpg "Recovery Image"
+[image4]: ./examples/recov2.jpg "Recovery Image"
+[image5]: ./examples/recov3.jpg "Recovery Image"
 [image6]: ./examples/data_dist.JPG "Data Distribution"
 [image7]: ./examples/downsampled.JPG "Data Distribution"
 
@@ -99,7 +99,9 @@ To capture good driving behavior, I first recorded four laps each way on track o
 I then recorded the vehicle recovering from the left side and right sides of the road back to center so that the vehicle would learn to steer away from the edges:
 
 ![alt text][image3]
+
 ![alt text][image4]
+
 ![alt text][image5]
 
 I also got one lap around track 2 to get more extreme turning data.
