@@ -109,7 +109,7 @@ if __name__ == "__main__":
                 steps_per_epoch=ceil(len(train_data)/batch_size),\
                 validation_data=validation_generator,\
                 validation_steps=ceil(len(validation_data)/batch_size),\
-                epochs=10, verbose=1, callbacks=[EarlyStopping(min_delta=0,patience=2)])
+                epochs=1, verbose=1, callbacks=[EarlyStopping(min_delta=0,patience=2)])
     
     save_choice = input("Do you want to save the model (y/n)? ")
     if save_choice == 'y':
