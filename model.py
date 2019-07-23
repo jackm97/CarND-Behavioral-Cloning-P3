@@ -5,6 +5,7 @@ import os
 from math import ceil
 from random import shuffle, seed
 
+# Gather image filenames and associated steering angles
 image_files = []
 steering_angles = []
 with open('../my_driving_data/driving_log_resamp.csv') as csvfile:
@@ -17,44 +18,44 @@ with open('../my_driving_data/driving_log_resamp.csv') as csvfile:
 data = np.column_stack([image_files,steering_angles])
 print(data.shape)
         
-
+# shuffle and split data
 from sklearn.model_selection import train_test_split
 train_data, validation_data = train_test_split(data, test_size=0.2)
 
+# generator for data to reduce memory load 
 import sklearn
 import tensorflow as tf
 def generator(data, batch_size=32,train=False):
     seed(1)
     shuffle(data)
-    num_samples = len(data)
-    image_input = tf.placeholder(tf.uint8,shape=(None,160,320,3))
-    flipped = tf.reverse(image_input,axis=[2])
-    with tf.Session() as sess:
-        while 1:
-            for offset in range(0,num_samples,batch_size):
-                images = []
-                steering_angles = []
-                for entry in data[offset:offset+batch_size]:
-                    if os.path.isfile(entry[0]):
-                        image = cv2.imread(entry[0])
-                        if train:
-                            rows,cols,depth = image.shape
-                            angle = 5.0*np.random.normal()
-                            mtx = cv2.getRotationMatrix2D((cols/2,rows/2),angle,1)
-                            image = cv2.warpAffine(image,mtx,(cols,rows))
-                            if np.random.uniform() > .5:
-                                images.append(image)
-                                steering_angles.append(float(entry[1]))
-                            else:
-                                images.append(cv2.flip(image,1))
-                                steering_angles.append(-1*float(entry[1]))
-                        else:
+    while 1:
+        for offset in range(0,num_samples,batch_size):
+            images = []
+            steering_angles = []
+            for entry in data[offset:offset+batch_size]:
+                if os.path.isfile(entry[0]):
+                    image = cv2.imread(entry[0])
+                    image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
+                    
+                    # randomly rotate and flip image
+                    if train:
+                        rows,cols,depth = image.shape
+                        angle = 5.0*np.random.normal()
+                        mtx = cv2.getRotationMatrix2D((cols/2,rows/2),angle,1)
+                        image = cv2.warpAffine(image,mtx,(cols,rows))
+                        if np.random.uniform() > .5:
                             images.append(image)
                             steering_angles.append(float(entry[1]))
-            
-                X = np.asarray(images)
-                y = np.array(steering_angles).reshape(len(X),1)
-                yield sklearn.utils.shuffle(X, y)
+                        else:
+                            images.append(cv2.flip(image,1))
+                            steering_angles.append(-1*float(entry[1]))
+                    else:
+                        images.append(image)
+                        steering_angles.append(float(entry[1]))
+                        
+            X = np.asarray(images)
+            y = np.array(steering_angles).reshape(len(X),1)
+            yield sklearn.utils.shuffle(X, y)
         
 if __name__ == "__main__":
     import sys
@@ -64,6 +65,7 @@ if __name__ == "__main__":
     train_generator = generator(train_data, batch_size=batch_size,train=True)
     validation_generator = generator(validation_data, batch_size=batch_size)
     
+    # create model and train from scratch
     if sys.argv[1] == "0":
         from keras.models import Sequential
         from keras.layers import Flatten, Dense, Cropping2D, Lambda, Conv2D, BatchNormalization, Dropout, Activation
@@ -96,14 +98,15 @@ if __name__ == "__main__":
         model.add(Dense(1))
 
         model.compile(loss='mse',optimizer='adam')
-        
+    
+    # train pretrained model
     else:
         import h5py
         from keras.models import load_model
         model = load_model(sys.argv[1], custom_objects={'tf': tf})
         print('model loaded')
     
-     
+    # training 
     from keras.callbacks import EarlyStopping
     model.fit_generator(train_generator,
                 steps_per_epoch=ceil(len(train_data)/batch_size),\
@@ -111,6 +114,7 @@ if __name__ == "__main__":
                 validation_steps=ceil(len(validation_data)/batch_size),\
                 epochs=1, verbose=1, callbacks=[EarlyStopping(min_delta=0,patience=2)])
     
+    # save model
     save_choice = input("Do you want to save the model (y/n)? ")
     if save_choice == 'y':
         model.save('model.h5')
