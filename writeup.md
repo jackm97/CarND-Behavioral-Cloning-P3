@@ -25,12 +25,13 @@ The goals / steps of this project are the following:
 ---
 ### Files Submitted & Code Quality
 
-#### 1. Submission Files
+#### 1. Project Files
 
 My project includes the following files:
 * model.py containing the script to create and train the model
 * drive.py for driving the car in autonomous mode
 * model_best.h5 containing a trained convolution neural network 
+* video.mp4 is a video recording of the vehicle driving autonomously around the track for at least one full lap
 * writeup.md summarizing the results
 
 #### 2. Submission includes functional code
