@@ -12,9 +12,9 @@ from PIL import Image
 from flask import Flask
 from io import BytesIO
 
-from keras.models import load_model
+from tensorflow.keras.models import load_model
 import h5py
-from keras import __version__ as keras_version
+from tensorflow.keras import __version__ as keras_version
 
 sio = socketio.Server()
 app = Flask(__name__)
@@ -117,8 +117,19 @@ if __name__ == '__main__':
 
     if model_version != keras_version:
         print('You are using Keras version ', keras_version,
-              ', but the model was built using ', model_version)
+              ', but the model was built using ', model_version)    
     import tensorflow as tf
+    gpus = tf.config.experimental.list_physical_devices('GPU')
+    if gpus:
+        try:
+            # Currently, memory growth needs to be the same across GPUs
+            for gpu in gpus:
+                tf.config.experimental.set_memory_growth(gpu, True)
+            logical_gpus = tf.config.experimental.list_logical_devices('GPU')
+            print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
+        except RuntimeError as e:
+            # Memory growth must be set before GPUs have been initialized
+            print(e)
     model = load_model(args.model, custom_objects={'tf': tf})
 
     if args.image_folder != '':
